@@ -372,6 +372,9 @@ public class ProblemB {
         }
 
         public boolean isIsomorphTo(DKA that) {
+            if (n == 1 || that.n == 1) {
+                return n == that.n;
+            }
             int[] fromThisToThatIndex = new int[n];
             Arrays.fill(fromThisToThatIndex, -1);
 
@@ -460,59 +463,83 @@ public class ProblemB {
         }
     }
 
+    static DKA generateDKA(Random r, int nLimit) {
+        int n = 1 + r.nextInt(nLimit);
+        int m = 1 + r.nextInt(Math.min(nLimit, n * charsCount));
+        int k = 1 + r.nextInt(n);
+        DKA dka = new DKA(n + 1);
+
+        int[] allIndexes = new int[n];
+        for (int i = 0; i < n; i++) {
+            allIndexes[i] = i + 1;
+        }
+        shuffleArray(allIndexes, r);
+        for (int i = 0; i < k; i++) {
+            dka.isFinish[allIndexes[i]] = true;
+        }
+
+        for (int i = 0; i < m; i++) {
+            int from = 1 + r.nextInt(n);
+            int to = 1 + r.nextInt(n);
+            int c = r.nextInt(charsCount);
+            while (dka.to[from][c] != DEVIL_STATE) {
+                from = 1 + r.nextInt(n);
+                to = 1 + r.nextInt(n);
+                c = r.nextInt(charsCount);
+            }
+            dka.to[from][c] = to;
+        }
+        if (dka.countEdges() != m || dka.countFinishes() != k) {
+            throw new IllegalStateException();
+        }
+        return dka;
+    }
+
     public static void stressTest() {
+        final int nLimit = 5000;
         Random seedGenerator = new Random(239);
         while (true) {
             int seed = seedGenerator.nextInt();
             Random r = new Random(seed);
 
-            int n = 1 + r.nextInt(50000);
-            int m = 1 + r.nextInt(Math.min(50000, n * charsCount));
-            int k = 1 + r.nextInt(n);
+            DKA dka1 = generateDKA(r, nLimit);
+            DKA dka2 = generateDKA(r, nLimit);
+            System.out.println("Seed=" + seed);
+            System.out.println(" n=" + (dka1.n - 1) + ", m=" + dka1.countEdges() + ", k=" + dka1.countFinishes());
+            System.out.println(" n=" + (dka2.n - 1) + ", m=" + dka2.countEdges() + ", k=" + dka2.countFinishes());
 
-            System.out.println("Seed=" + seed + ", n=" + n);
-            DKA dka = new DKA(n + 1);
-
-            int[] allIndexes = new int[n];
-            for (int i = 0; i < n; i++) {
-                allIndexes[i] = i + 1;
+            dka1 = dka1.removeNotReachables();
+            if (dka1.n - 1 >= 1) {
+                dka1 = dka1.minimize();
             }
-            shuffleArray(allIndexes, r);
-            for (int i = 0; i < k; i++) {
-                dka.isFinish[allIndexes[i]] = true;
-            }
-
-            for (int i = 0; i < m; i++) {
-                int from = 1 + r.nextInt(n);
-                int to = 1 + r.nextInt(n);
-                int c = r.nextInt(charsCount);
-                while (dka.to[from][c] != DEVIL_STATE) {
-                    from = 1 + r.nextInt(n);
-                    to = 1 + r.nextInt(n);
-                    c = r.nextInt(charsCount);
-                }
-                dka.to[from][c] = to;
-//                System.out.println(" " + from + "->" + to + " (" + (char) (minChar + c) + ")");
+            dka2 = dka2.removeNotReachables();
+            if (dka2.n - 1 >= 1) {
+                dka2 = dka2.minimize();
             }
 
-            dka = dka.removeNotReachables();
-            if (dka.n == 0 || dka.countEdges() == 0 || dka.countFinishes() == 0) {
-                System.out.println("skipped...");
-                continue;
-            }
-            dka = dka.minimize();
+            System.out.println("  n=" + (dka1.n - 1) + ", m=" + dka1.countEdges() + ", k=" + dka1.countFinishes());
+            System.out.println("  n=" + (dka2.n - 1) + ", m=" + dka2.countEdges() + ", k=" + dka2.countFinishes());
+
+            System.out.println("  1 ~ 2 == " + dka1.isIsomorphTo(dka2));
+            System.out.println();
         }
     }
 
     public static void main(String[] args) throws Exception {
+//        stressTest();
+
         BufferedReader in = new BufferedReader(new FileReader("equivalence.in"));
         DKA dka1 = readDka(in);
         DKA dka2 = readDka(in);
 
         dka1 = dka1.removeNotReachables();
-        dka1 = dka1.minimize();
+        if (dka1.n - 1 >= 1) {
+            dka1 = dka1.minimize();
+        }
         dka2 = dka2.removeNotReachables();
-        dka2 = dka2.minimize();
+        if (dka2.n - 1 >= 1) {
+            dka2 = dka2.minimize();
+        }
 
         PrintWriter out = new PrintWriter("equivalence.out");
         out.println(dka1.isIsomorphTo(dka2) ? "YES" : "NO");
