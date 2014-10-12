@@ -1,5 +1,6 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.*;
 
@@ -370,6 +371,46 @@ public class ProblemD {
             return min;
         }
 
+        public boolean isIsomorphTo(DKA that) {
+            if (n == 1 || that.n == 1) {
+                return n == that.n;
+            }
+            int[] fromThisToThatIndex = new int[n];
+            Arrays.fill(fromThisToThatIndex, -1);
+
+            int[] q1 = new int[n];
+            int[] q2 = new int[n];
+            int next = 0;
+            int last = 0;
+            q1[last] = START_STATE;
+            q2[last] = START_STATE;
+            fromThisToThatIndex[START_STATE] = START_STATE;
+            boolean fail = false;
+            while (next <= last && !fail) {
+                int id1 = q1[next];
+                int id2 = q2[next];
+                next++;
+                if (isFinish[id1] != that.isFinish[id2]) {
+                    fail = true;
+                    break;
+                }
+                for (int c = 0; c < charsCount; c++) {
+                    int to1 = to[id1][c];
+                    int to2 = that.to[id2][c];
+                    if (fromThisToThatIndex[to1] == -1) {
+                        fromThisToThatIndex[to1] = to2;
+                        last++;
+                        q1[last] = to1;
+                        q2[last] = to2;
+                    } else if (fromThisToThatIndex[to1] != to2) {
+                        fail = true;
+                        break;
+                    }
+                }
+            }
+            return !fail;
+        }
+
         @Override
         public String toString() {
             String result = (n - 1) + " " + countEdges() + " " + countFinishes() + "\n";
@@ -390,63 +431,7 @@ public class ProblemD {
         }
     }
 
-    public static void shuffleArray(int[] a, Random r) {
-        for (int i = 0; i < a.length; i++) {
-            int j = r.nextInt(a.length);
-            int tmp = a[j];
-            a[j] = a[i];
-            a[i] = tmp;
-        }
-    }
-
-    public static void stressTest() {
-        Random seedGenerator = new Random(239);
-        while (true) {
-            int seed = seedGenerator.nextInt();
-            Random r = new Random(seed);
-
-            int n = 1 + r.nextInt(50000);
-            int m = 1 + r.nextInt(Math.min(50000, n * charsCount));
-            int k = 1 + r.nextInt(n);
-
-            System.out.println("Seed=" + seed + ", n=" + n);
-            DKA dka = new DKA(n + 1);
-
-            int[] allIndexes = new int[n];
-            for (int i = 0; i < n; i++) {
-                allIndexes[i] = i + 1;
-            }
-            shuffleArray(allIndexes, r);
-            for (int i = 0; i < k; i++) {
-                dka.isFinish[allIndexes[i]] = true;
-            }
-
-            for (int i = 0; i < m; i++) {
-                int from = 1 + r.nextInt(n);
-                int to = 1 + r.nextInt(n);
-                int c = r.nextInt(charsCount);
-                while (dka.to[from][c] != DEVIL_STATE) {
-                    from = 1 + r.nextInt(n);
-                    to = 1 + r.nextInt(n);
-                    c = r.nextInt(charsCount);
-                }
-                dka.to[from][c] = to;
-//                System.out.println(" " + from + "->" + to + " (" + (char) (minChar + c) + ")");
-            }
-
-            dka = dka.removeNotReachables();
-            if (dka.n == 0 || dka.countEdges() == 0 || dka.countFinishes() == 0) {
-                System.out.println("skipped...");
-                continue;
-            }
-            dka = dka.minimize();
-        }
-    }
-
-    public static void main(String[] args) throws Exception {
-//        stressTest();
-
-        BufferedReader in = new BufferedReader(new FileReader("fastminimization.in"));
+    private static DKA readDka(BufferedReader in) throws IOException {
         StringTokenizer tok = new StringTokenizer(in.readLine());
         DKA dka = new DKA(Integer.parseInt(tok.nextToken()) + 1);
         {
@@ -466,16 +451,95 @@ public class ProblemD {
                 dka.to[from][c] = to;
             }
         }
+        return dka;
+    }
 
-//        System.out.println("Input:\n" + dka);
-//        DKA normalized = dka.removeNotReachables();
-//        System.out.println("\nNormalized:\n" + normalized);
-//        DKA minDka = normalized.minimize();
-//        System.out.println("\nMinimized:\n" + minDka);
+    public static void shuffleArray(int[] a, Random r) {
+        for (int i = 0; i < a.length; i++) {
+            int j = r.nextInt(a.length);
+            int tmp = a[j];
+            a[j] = a[i];
+            a[i] = tmp;
+        }
+    }
+
+    static DKA generateDKA(Random r, int n, int m) {
+        int k = 1 + r.nextInt(n);
+        DKA dka = new DKA(n + 1);
+
+        int[] allIndexes = new int[n];
+        for (int i = 0; i < n; i++) {
+            allIndexes[i] = i + 1;
+        }
+        shuffleArray(allIndexes, r);
+        for (int i = 0; i < k; i++) {
+            dka.isFinish[allIndexes[i]] = true;
+        }
+
+        for (int i = 0; i < m; i++) {
+            int from = 1 + r.nextInt(n);
+            int to = 1 + r.nextInt(n);
+            int c = r.nextInt(charsCount);
+            while (dka.to[from][c] != DEVIL_STATE) {
+                from = 1 + r.nextInt(n);
+                to = 1 + r.nextInt(n);
+                c = r.nextInt(charsCount);
+            }
+            dka.to[from][c] = to;
+        }
+        if (dka.countEdges() != m || dka.countFinishes() != k) {
+            throw new IllegalStateException();
+        }
+        return dka;
+    }
+
+    public static void stressTest() {
+        Random seedGenerator = new Random(239);
+        int skipIters = 10;
+        long maxTime = -1;
+        int maxSeed = -1;
+        while (true) {
+            long start = System.currentTimeMillis();
+            int seed = seedGenerator.nextInt();
+            Random r = new Random(seed);
+            System.out.println("Seed: " + seed);
+
+            DKA dka = generateDKA(r, 50_000, 100_000);
+            dka = dka.removeNotReachables();
+            if (dka.n - 1 >= 1) {
+                dka = dka.minimize();
+            }
+            System.out.println(" n=" + (dka.n - 1) + ", m=" + dka.countEdges() + ", k=" + dka.countFinishes());
+
+            long timePassed = System.currentTimeMillis() - start;
+            System.out.println("  time: " + timePassed + " ms");
+
+            if (skipIters != 0) {
+                skipIters--;
+                continue;
+            }
+
+            if (timePassed > maxTime) {
+                maxTime = timePassed;
+                maxSeed = seed;
+            }
+            System.out.println("  (maxTime: " + maxTime + " ms with seed: " + maxSeed + ")");
+        }
+    }
+
+    public static void main(String[] args) throws Exception {
+//        stressTest();
+
+        BufferedReader in = new BufferedReader(new FileReader("minimization.in"));
+        DKA dka = readDka(in);
+
         dka = dka.removeNotReachables();
-        dka = dka.minimize();
+        if (dka.n - 1 >= 1) {
+            dka = dka.minimize();
+        }
 
-        PrintWriter out = new PrintWriter("fastminimization.out");
+        PrintWriter out = new PrintWriter("minimization.out");
+
         out.println((dka.n - 1) + " " + dka.countEdges() + " " + dka.countFinishes());
         for (int i = 1; i < dka.n; i++) {
             if (dka.isFinish[i]) {
