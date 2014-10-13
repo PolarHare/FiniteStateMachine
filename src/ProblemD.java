@@ -264,25 +264,33 @@ public class ProblemD {
             int[] involvedCount = new int[n];
             int[] involvedTwinClass = new int[n];
             Arrays.fill(involvedTwinClass, -1);
+
+            int[] involvedClasses = new int[n];
+            int involvedClassesLast;
+            int[] fromSList = new int[n * charsCount];
+            int fromSListLast;
             while (nextQ <= lastQ) {
                 int curClass = classQ[nextQ];
                 int curChar = charQ[nextQ];
                 nextQ++;
 
-                List<Integer> involvedClasses = new ArrayList<>();
-                List<Integer> fromSList = new ArrayList<>();
+                involvedClassesLast = -1;
+                fromSListLast = -1;
                 for (Node n : classHead[curClass]) {
                     int state = n.value;
                     for (int fromS : from[state][curChar]) {
-                        fromSList.add(fromS);
+                        fromSListLast++;
+                        fromSList[fromSListLast] = fromS;
                         int classId = stateClassId[fromS];
                         if (involvedCount[classId] == 0) {
-                            involvedClasses.add(classId);
+                            involvedClassesLast++;
+                            involvedClasses[involvedClassesLast] = classId;
                         }
                         involvedCount[classId]++;
                     }
                 }
-                for (int fromS : fromSList) {
+                for (int i = 0; i <= fromSListLast; i++) {
+                    int fromS = fromSList[i];
                     int classId = stateClassId[fromS];
                     if (involvedCount[classId] < classSize[classId]) {
                         if (involvedTwinClass[classId] == -1) {
@@ -303,7 +311,8 @@ public class ProblemD {
                     }
                 }
 
-                for (int classId : involvedClasses) {
+                for (int i = 0; i <= involvedClassesLast; i++) {
+                    int classId = involvedClasses[i];
                     if (involvedCount[classId] < classSize[classId]) {
                         for (int c = 0; c < charsCount; c++) {
                             int classToAdd = -1;
@@ -527,10 +536,44 @@ public class ProblemD {
         }
     }
 
-    public static void main(String[] args) throws Exception {
-//        stressTest();
+    public static void maxTest() {
+        int n = 50_000;
+        int m = n - 1;
+        int k = 1;
+        long start = System.currentTimeMillis();
 
-        BufferedReader in = new BufferedReader(new FileReader("minimization.in"));
+        DKA dka = new DKA(n + 1);
+
+        dka.isFinish[n] = true;
+
+        for (int i = 1; i <= n - 1; i++) {
+            dka.to[i][i % charsCount] = i + 1;
+        }
+
+        dka = dka.removeNotReachables();
+        if (dka.n - 1 >= 1) {
+            dka = dka.minimize();
+        }
+        System.out.println("Stress time: " + (System.currentTimeMillis() - start) + " ms");
+    }
+
+    public static void main(String[] args) throws Exception {
+//        Stress time: 1270 ms -> 807 ms
+//        Stress time: 568 ms  -> 608 ms
+//        Stress time: 413 ms  -> 149 ms
+//        Stress time: 340 ms  -> 135 ms
+//        Stress time: 237 ms  -> 121 ms
+//        Stress time: 260 ms  -> 178 ms
+//        Stress time: 241 ms  -> 88 ms
+//        Stress time: 199 ms  -> 162 ms
+//        Stress time: 211 ms  -> 86 ms
+//        Stress time: 235 ms  -> 105 ms
+//        stressTest();
+//        for (int i = 0; i < 10; i++) {
+//            maxTest();
+//        }
+
+        BufferedReader in = new BufferedReader(new FileReader("fastminimization.in"));
         DKA dka = readDka(in);
 
         dka = dka.removeNotReachables();
@@ -538,7 +581,7 @@ public class ProblemD {
             dka = dka.minimize();
         }
 
-        PrintWriter out = new PrintWriter("minimization.out");
+        PrintWriter out = new PrintWriter("fastminimization.out");
 
         out.println((dka.n - 1) + " " + dka.countEdges() + " " + dka.countFinishes());
         for (int i = 1; i < dka.n; i++) {
